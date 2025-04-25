@@ -1,17 +1,9 @@
-SUPPORTED_FORMATS = {
-    ".pdf": "PyPDFLoader",
-    ".docx": "Docx2txtLoader",
-    ".txt": "TextLoader",
-    ".md": "UnstructuredMarkdownLoader",
-    ".csv": "CSVLoader",
-    ".ppt": "UnstructuredPowerPointLoader",
-    ".pptx": "UnstructuredPowerPointLoader",
-    ".htm": "UnstructuredHTMLLoader",
-    ".html": "UnstructuredHTMLLoader"
-}
+from pydantic import BaseSettings
 
-DEFAULT_SETTINGS = {
-    "chunk_size": 800,
-    "chunk_overlap": 100,
-    "batch_size": None
-}
+class AppConfig(BaseSettings):
+    PAGE_TITLE: str = "Document AI Chat"
+    PAGE_ICON: str = "📚"
+    DEFAULT_CHUNK_SIZE: int = 800
+    DEFAULT_CHUNK_OVERLAP: int = 100
+    SUPPORTED_FILE_TYPES: list = ["pdf", "txt", "docx", "md", "csv", "ppt", "pptx", "html"]
+    DEFAULT_MODELS: list = ["llama3:8b", "phi3:mini"]

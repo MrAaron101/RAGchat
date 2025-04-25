@@ -1,4 +1,3 @@
-
 #Streamlit app code
 import streamlit as st
 import os
@@ -142,6 +141,17 @@ uploaded_files = st.sidebar.file_uploader(
     type=["pdf", "txt", "docx", "md", "csv", "ppt", "pptx", "html"]
 )
 
+def save_uploaded_file(uploaded_file) -> bool:
+    """Save uploaded file with proper error handling"""
+    try:
+        file_path = os.path.join("./data", uploaded_file.name)
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        return True
+    except Exception as e:
+        st.sidebar.error(f"Error saving {uploaded_file.name}: {e}")
+        return False
+
 # Process uploaded files
 if uploaded_files:
     # Create data directory if it doesn't exist
@@ -150,10 +160,8 @@ if uploaded_files:
     with st.sidebar.status("Processing documents..."):
         for file in uploaded_files:
             # Save file to data directory
-            file_path = os.path.join("./data", file.name)
-            with open(file_path, "wb") as f:
-                f.write(file.getbuffer())
-            st.sidebar.write(f"✅ Saved: {file.name}")
+            if save_uploaded_file(file):
+                st.sidebar.write(f"✅ Saved: {file.name}")
         
         # Update the vector store with new documents
         st.sidebar.write("Indexing documents...")
