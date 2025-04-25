@@ -1,5 +1,7 @@
-
+#change the file name
 # RAG Engine for Document Retrieval and Question Answering
+print("Initializing RAG Engine")
+# Standard library imports
 import os
 import chromadb
 from typing import List, Dict, Any, Optional
