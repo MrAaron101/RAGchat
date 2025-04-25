@@ -16,13 +16,13 @@ import gc
 # Document loaders
 from langchain_community.document_loaders import (
     PyPDFLoader, 
-    TextLoader,
-    Docx2txtLoader, 
+    TextLoader, 
     UnstructuredMarkdownLoader,
     CSVLoader,
     UnstructuredPowerPointLoader,
     UnstructuredHTMLLoader,
 )
+from langchain_community.document_loaders import DocxLoader
 # Langchain imports
 from langchain.document_loaders.base import BaseLoader
 from langchain.schema import Document
@@ -97,7 +97,7 @@ class DocumentProcessor:
         if file_lower.endswith(".pdf"):
             return PyPDFLoader(file_path)
         elif file_lower.endswith(".docx"):
-            return Docx2txtLoader(file_path)
+            return DocxLoader(file_path)
         elif file_lower.endswith(".txt"):
             return TextLoader(file_path)
         elif file_lower.endswith(".md"):

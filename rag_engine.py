@@ -1,16 +1,41 @@
-#change the file name
 # RAG Engine for Document Retrieval and Question Answering
-print("Initializing RAG Engine")
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Replace print statements with logger calls
+logger.info("Initializing RAG Engine")
+
 # Standard library imports
 import os
 import chromadb
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TypedDict
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.llms import Ollama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from document_processor import DocumentProcessor
+from contextlib import contextmanager
+import gc
+
+@contextmanager
+def _memory_manager(self):
+    try:
+        yield
+    finally:
+        gc.collect()
+        logger.debug("Memory cleanup performed")
+
+class QueryResponse(TypedDict):
+    answer: str
+    sources: List[Dict[str, str]]
+    source_count: int
 
 class RAGEngine:
     """
@@ -48,7 +73,7 @@ class RAGEngine:
         self.temperature = temperature
         self.similarity_threshold = similarity_threshold
         
-        print(f"Initializing RAG engine with model: {model_name}")
+        logger.info(f"Initializing RAG engine with model: {model_name}")
         
         # Initialize embeddings - using HuggingFace for efficient performance on M2
         self.embeddings = HuggingFaceEmbeddings(
@@ -60,8 +85,8 @@ class RAGEngine:
         try:
             self._initialize_vector_store()
         except Exception as e:
-            print(f"Warning: Vector store initialization failed: {e}")
-            print("Creating an empty vector store. Please add documents later.")
+            logger.warning(f"Vector store initialization failed: {e}")
+            logger.info("Creating an empty vector store. Please add documents later.")
             # Create directory if it doesn't exist
             os.makedirs(self.persist_directory, exist_ok=True)
             self.vector_store = Chroma(
@@ -77,35 +102,45 @@ class RAGEngine:
         
     def _initialize_vector_store(self):
         """Initialize or load the vector store."""
-        # Check if vector store already exists
-        if os.path.exists(self.persist_directory) and os.listdir(self.persist_directory):
-            print("Loading existing vector store...")
-            self.vector_store = Chroma(
-                persist_directory=self.persist_directory,
-                embedding_function=self.embeddings
-            )
-        else:
-            print("Creating new vector store...")
-            # Process documents
-            processor = DocumentProcessor(self.data_directory)
-            documents = processor.process_documents()
-            
-            if not documents:
-                print("No documents found to process. Creating empty vector store.")
+        try:
+            if not os.path.exists(self.persist_directory):
+                os.makedirs(self.persist_directory, exist_ok=True)
+                
+            if os.listdir(self.persist_directory):
+                logger.info("Loading existing vector store...")
                 self.vector_store = Chroma(
                     persist_directory=self.persist_directory,
                     embedding_function=self.embeddings
                 )
-                return
-            
-            # Create vector store
-            self.vector_store = Chroma.from_documents(
-                documents=documents,
-                embedding=self.embeddings,
-                persist_directory=self.persist_directory
+            else:
+                self._create_new_vector_store()
+        except Exception as e:
+            logger.error(f"Vector store initialization failed: {e}")
+            raise
+    
+    def _create_new_vector_store(self):
+        """Create a new vector store from documents."""
+        logger.info("Creating new vector store...")
+        # Process documents
+        processor = DocumentProcessor(self.data_directory)
+        documents = processor.process_documents()
+        
+        if not documents:
+            logger.info("No documents found to process. Creating empty vector store.")
+            self.vector_store = Chroma(
+                persist_directory=self.persist_directory,
+                embedding_function=self.embeddings
             )
-            self.vector_store.persist()
-            print(f"Vector store created and persisted with {len(documents)} documents")
+            return
+        
+        # Create vector store
+        self.vector_store = Chroma.from_documents(
+            documents=documents,
+            embedding=self.embeddings,
+            persist_directory=self.persist_directory
+        )
+        self.vector_store.persist()
+        logger.info(f"Vector store created and persisted with {len(documents)} documents")
     
     def _setup_qa_chain(self):
         """Set up the question-answering chain with custom prompt."""
@@ -159,7 +194,7 @@ class RAGEngine:
             chunk_size: Size of document chunks
             chunk_overlap: Overlap between chunks
         """
-        print("Updating vector store with new documents...")
+        logger.info("Updating vector store with new documents...")
         try:
             processor = DocumentProcessor(
                 self.data_directory,
@@ -172,13 +207,13 @@ class RAGEngine:
                 # Add new documents to vector store
                 self.vector_store.add_documents(documents)
                 self.vector_store.persist()
-                print(f"Vector store updated with {len(documents)} chunks")
+                logger.info(f"Vector store updated with {len(documents)} chunks")
             else:
-                print("No new documents found to update the vector store")
+                logger.info("No new documents found to update the vector store")
         except Exception as e:
-            print(f"Error updating vector store: {e}")
+            logger.error(f"Error updating vector store: {e}")
     
-    def query(self, question: str, retrieval_k: Optional[int] = None) -> Dict[str, Any]:
+    def query(self, question: str, retrieval_k: Optional[int] = None) -> QueryResponse:
         """
         Query the RAG system with a question.
         
@@ -189,14 +224,14 @@ class RAGEngine:
         Returns:
             A dictionary containing the answer and source documents
         """
-        print(f"Querying: {question}")
+        logger.info(f"Querying: {question}")
         
         # Override retrieval k if specified
         if retrieval_k is not None and retrieval_k != self.retrieval_k:
             original_k = self.retrieval_k
             self.retrieval_k = retrieval_k
             self.qa_chain = self._setup_qa_chain()
-            print(f"Temporarily changed retrieval k from {original_k} to {retrieval_k}")
+            logger.info(f"Temporarily changed retrieval k from {original_k} to {retrieval_k}")
         
         try:
             result = self.qa_chain({"query": question})
@@ -223,7 +258,7 @@ class RAGEngine:
             }
         
         except Exception as e:
-            print(f"Error querying RAG system: {e}")
+            logger.error(f"Error querying RAG system: {e}")
             return {
                 "answer": f"I encountered an error while trying to answer your question. Error: {str(e)}",
                 "sources": [],
@@ -249,7 +284,7 @@ class RAGEngine:
                 "temperature": self.temperature
             }
         except Exception as e:
-            print(f"Error getting stats: {e}")
+            logger.error(f"Error getting stats: {e}")
             return {
                 "error": str(e),
                 "model": self.model_name
@@ -259,7 +294,7 @@ if __name__ == "__main__":
     # Simple test to make sure the engine works
     rag = RAGEngine()
     stats = rag.get_stats()
-    print(f"RAG Engine Stats: {stats}")
+    logger.info(f"RAG Engine Stats: {stats}")
     
     # Test query if there are documents
     if stats.get("document_count", 0) > 0:
@@ -269,4 +304,4 @@ if __name__ == "__main__":
         for i, source in enumerate(response['sources']):
             print(f"- Source {i+1} ({source['file_name']}): {source['content']}")
     else:
-        print("No documents in the vector store. Please add documents first.")
+        logger.info("No documents in the vector store. Please add documents first.")
