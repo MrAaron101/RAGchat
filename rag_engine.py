@@ -41,12 +41,13 @@ class RAGEngine:
         finally:
             gc.collect()
             logger.debug("Memory cleanup performed")
-            
+
     def __init__(
         self, 
         model_name: str = "llama3:8b",
         embedding_model_name: str = "all-MiniLM-L6-v2",
         data_directory: str = "./data",
+        persist_directory: str = "./vector_store",  # Add this line
         retrieval_k: int = 3,
         temperature: float = 0.1,
         similarity_threshold: float = 0.2
@@ -65,6 +66,7 @@ class RAGEngine:
         """
         self.model_name = model_name
         self.data_directory = data_directory
+        self.persist_directory = persist_directory  # Add this line
         self.retrieval_k = retrieval_k
         self.temperature = temperature
         self.similarity_threshold = similarity_threshold
