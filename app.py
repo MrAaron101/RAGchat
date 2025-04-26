@@ -8,6 +8,7 @@ import json
 import subprocess
 from datetime import datetime
 from rag_engine import RAGEngine
+import validators
 
 # Set page configuration
 st.set_page_config(
@@ -254,6 +255,33 @@ with col2:
             st.experimental_rerun()
         except Exception as e:
             st.error(f"Failed to import chat: {e}")
+
+# Add URL input section
+st.sidebar.subheader("Add URL")
+url_input = st.sidebar.text_input(
+    "Enter URL:",
+    placeholder="https://example.com",
+    help="Enter a valid URL to add to the knowledge base"
+)
+
+# Process URL when submitted
+if url_input:
+    with st.sidebar.status("Processing URL...") as status:
+        try:
+            if validators.url(url_input):
+                if rag_engine.add_url(url_input):
+                    status.update(label="✅ URL processed successfully!", state="complete")
+                    # Update stats
+                    stats = rag_engine.get_stats()
+                    st.sidebar.write(f"Total documents: {stats.get('document_count', 0)}")
+                    time.sleep(1)
+                    st.experimental_rerun()
+                else:
+                    status.update(label="❌ Failed to process URL", state="error")
+            else:
+                status.update(label="❌ Invalid URL format", state="error")
+        except Exception as e:
+            status.update(label=f"❌ Error: {str(e)}", state="error")
 
 # Add after the document uploader
 st.sidebar.caption("""
