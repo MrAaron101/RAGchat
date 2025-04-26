@@ -44,20 +44,33 @@ def get_available_ollama_models():
         return ["llama3:8b", "phi3:mini"]  # Default fallback
 
 def list_uploaded_files():
-    """List files in the data directory"""
-    if not os.path.exists("./data"):
-        return []
-    
+    """List files and URLs in the knowledge base"""
     files = []
-    for file in os.listdir("./data"):
-        file_path = os.path.join("./data", file)
-        if os.path.isfile(file_path):
-            size_kb = os.path.getsize(file_path) / 1024
+    
+    # List local files
+    if os.path.exists("./data"):
+        for file in os.listdir("./data"):
+            file_path = os.path.join("./data", file)
+            if os.path.isfile(file_path):
+                size_kb = os.path.getsize(file_path) / 1024
+                files.append({
+                    "name": file,
+                    "type": "file",
+                    "size": f"{size_kb:.1f} KB",
+                    "modified": datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M")
+                })
+    
+    # Get URLs from RAG engine (assuming you've added URL tracking)
+    if hasattr(st.session_state.rag_engine, 'get_urls'):
+        urls = st.session_state.rag_engine.get_urls()
+        for url in urls:
             files.append({
-                "name": file,
-                "size": f"{size_kb:.1f} KB",
-                "modified": datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M")
+                "name": url,
+                "type": "url",
+                "size": "N/A",
+                "modified": datetime.now().strftime("%Y-%m-%d %H:%M")
             })
+    
     return files
 
 # Check if Ollama is running
@@ -242,6 +255,13 @@ with col2:
         except Exception as e:
             st.error(f"Failed to import chat: {e}")
 
+# Add after the document uploader
+st.sidebar.caption("""
+Supported formats:
+- Files: PDF, TXT, DOCX, MD, CSV, PPT, PPTX, HTML
+- URLs: Web pages with public access
+""")
+
 # Main app
 st.markdown("""
 Ask questions about your documents and get answers from the AI.
@@ -331,9 +351,9 @@ st.sidebar.markdown("---")
 st.sidebar.header("About")
 st.sidebar.info("""
 This app uses Retrieval-Augmented Generation (RAG) to answer questions based on your documents.
-1. Upload documents in the sidebar
+1. Upload documents or add URLs in the sidebar
 2. Ask questions in the chat
-3. The AI will search your documents and generate answers
+3. The AI will search your knowledge base and generate answers
 """)
 
 st.sidebar.code("streamlit run app.py")
