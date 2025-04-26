@@ -22,7 +22,6 @@ from langchain_community.document_loaders import (
     UnstructuredPowerPointLoader,
     UnstructuredHTMLLoader,
 )
-from langchain_community.document_loaders import DocxLoader
 # Langchain imports
 from langchain.document_loaders.base import BaseLoader
 from langchain.schema import Document
