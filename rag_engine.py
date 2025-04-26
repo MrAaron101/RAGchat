@@ -13,7 +13,6 @@ logger.info("Initializing RAG Engine")
 
 # Standard library imports
 import os
-import chromadb
 from typing import List, Dict, Any, Optional, TypedDict
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
