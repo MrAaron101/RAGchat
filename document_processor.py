@@ -95,8 +95,6 @@ class DocumentProcessor:
         
         if file_lower.endswith(".pdf"):
             return PyPDFLoader(file_path)
-        elif file_lower.endswith(".docx"):
-            return DocxLoader(file_path)
         elif file_lower.endswith(".txt"):
             return TextLoader(file_path)
         elif file_lower.endswith(".md"):
