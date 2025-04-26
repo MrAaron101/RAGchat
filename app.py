@@ -73,7 +73,7 @@ if not ollama_running:
 st.sidebar.title("Configuration")
 
 # Get available models
-with st.sidebar.spinner("Loading available models..."):
+with st.spinner("Loading available models..."):
     with st.sidebar:
         st.write("Sidebar content goes here.")
     model_options = get_available_ollama_models()
