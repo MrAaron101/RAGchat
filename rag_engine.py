@@ -16,7 +16,7 @@ import os
 import chromadb
 from typing import List, Dict, Any, Optional, TypedDict
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_community.llms import Ollama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
@@ -48,7 +48,7 @@ class RAGEngine:
         self, 
         model_name: str = "llama3:8b",
         embedding_model_name: str = "all-MiniLM-L6-v2",
-        persist_directory: str = "./chroma_db",
+        persist_directory: str = "./faiss_index",
         data_directory: str = "./data",
         retrieval_k: int = 3,
         temperature: float = 0.1,
@@ -89,7 +89,7 @@ class RAGEngine:
             logger.info("Creating an empty vector store. Please add documents later.")
             # Create directory if it doesn't exist
             os.makedirs(self.persist_directory, exist_ok=True)
-            self.vector_store = Chroma(
+            self.vector_store = FAISS(
                 persist_directory=self.persist_directory,
                 embedding_function=self.embeddings
             )
@@ -103,15 +103,16 @@ class RAGEngine:
     def _initialize_vector_store(self):
         """Initialize or load the vector store."""
         try:
-            if not os.path.exists(self.persist_directory):
-                os.makedirs(self.persist_directory, exist_ok=True)
-                
-            if os.listdir(self.persist_directory):
-                logger.info("Loading existing vector store...")
-                self.vector_store = Chroma(
-                    persist_directory=self.persist_directory,
-                    embedding_function=self.embeddings
-                )
+            index_file = os.path.join(self.persist_directory, "index.faiss")
+            docstore_file = os.path.join(self.persist_directory, "docstore.pkl")
+        
+            if os.path.exists(index_file) and os.path.exists(docstore_file):
+                logger.info("Loading existing FAISS index...")
+                self.vector_store = FAISS.load_local(
+                self.persist_directory,
+                self.embeddings,
+                "index"
+            )
             else:
                 self._create_new_vector_store()
         except Exception as e:
@@ -120,27 +121,29 @@ class RAGEngine:
     
     def _create_new_vector_store(self):
         """Create a new vector store from documents."""
-        logger.info("Creating new vector store...")
+        logger.info("Creating new FAISS vector store...")
         # Process documents
         processor = DocumentProcessor(self.data_directory)
         documents = processor.process_documents()
         
         if not documents:
             logger.info("No documents found to process. Creating empty vector store.")
-            self.vector_store = Chroma(
-                persist_directory=self.persist_directory,
-                embedding_function=self.embeddings
+            os.makedirs(self.persist_directory, exist_ok=True)
+            self.vector_store = FAISS(
+                ["Empty placeholder document"], 
+                self.embeddings
             )
+            self.vector_store.save_local(self.persist_directory, "index")
             return
         
         # Create vector store
-        self.vector_store = Chroma.from_documents(
+        self.vector_store = FAISS.from_documents(
             documents=documents,
             embedding=self.embeddings,
-            persist_directory=self.persist_directory
         )
-        self.vector_store.persist()
-        logger.info(f"Vector store created and persisted with {len(documents)} documents")
+        os.makedirs(self.persist_directory, exist_ok=True)
+        self.vector_store.save_local(self.persist_directory, "index")
+        logger.info(f"FAISS vector store created and saved with {len(documents)} documents")
     
     def _setup_qa_chain(self):
         """Set up the question-answering chain with custom prompt."""
@@ -206,7 +209,8 @@ class RAGEngine:
             if documents:
                 # Add new documents to vector store
                 self.vector_store.add_documents(documents)
-                self.vector_store.persist()
+                # Save the updated index
+                self.vector_store.save_local(self.persist_directory, "index")
                 logger.info(f"Vector store updated with {len(documents)} chunks")
             else:
                 logger.info("No new documents found to update the vector store")
@@ -267,15 +271,18 @@ class RAGEngine:
         
         finally:
             # Reset retrieval k if it was temporarily changed
-            if retrieval_k is not None and retrieval_k != self.retrieval_k:
-                self.retrieval_k = original_k
-                self.qa_chain = self._setup_qa_chain()
+            retriever = self.vector_store.as_retriever(
+                search_kwargs={
+                    "k": self.retrieval_k,
+                    "fetch_k": self.retrieval_k * 4
+                },
+                search_type="similarity"
+            )
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics about the RAG engine."""
         try:
-            collection = self.vector_store._collection
-            count = collection.count()
+            count = len(self.vector_store.index_to_docstore_id)
             return {
                 "document_count": count,
                 "model": self.model_name,
