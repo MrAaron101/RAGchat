@@ -23,14 +23,6 @@ from document_processor import DocumentProcessor
 from contextlib import contextmanager
 import gc
 
-@contextmanager
-def _memory_manager(self):
-    try:
-        yield
-    finally:
-        gc.collect()
-        logger.debug("Memory cleanup performed")
-
 class QueryResponse(TypedDict):
     answer: str
     sources: List[Dict[str, str]]
@@ -42,12 +34,18 @@ class RAGEngine:
     to retrieve relevant document chunks and generate answers using a local LLM.
     Optimized for Apple M2 MacBook with 8GB RAM.
     """
-    
+    @contextmanager
+    def _memory_manager(self):
+        try:
+            yield
+        finally:
+            gc.collect()
+            logger.debug("Memory cleanup performed")
+            
     def __init__(
         self, 
         model_name: str = "llama3:8b",
         embedding_model_name: str = "all-MiniLM-L6-v2",
-        persist_directory: str = "./faiss_index",
         data_directory: str = "./data",
         retrieval_k: int = 3,
         temperature: float = 0.1,
@@ -66,7 +64,6 @@ class RAGEngine:
             similarity_threshold: Minimum similarity score for retrieval
         """
         self.model_name = model_name
-        self.persist_directory = persist_directory
         self.data_directory = data_directory
         self.retrieval_k = retrieval_k
         self.temperature = temperature
@@ -89,7 +86,6 @@ class RAGEngine:
             # Create directory if it doesn't exist
             os.makedirs(self.persist_directory, exist_ok=True)
             self.vector_store = FAISS(
-                persist_directory=self.persist_directory,
                 embedding_function=self.embeddings
             )
         
