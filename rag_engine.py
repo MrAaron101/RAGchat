@@ -50,7 +50,7 @@ class RAGEngine:
         model_name: str = "llama3:8b",
         embedding_model_name: str = "all-MiniLM-L6-v2",
         data_directory: str = "./data",
-        persist_directory: str = "./vector_store",  # Add this line
+        persist_directory: str = "./vector_store",
         retrieval_k: int = 3,
         temperature: float = 0.1,
         similarity_threshold: float = 0.2

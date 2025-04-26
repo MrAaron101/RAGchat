@@ -203,7 +203,7 @@ if files:
             if st.button("❌", key=f"delete_{file['name']}"):
                 try:
                     os.remove(os.path.join("./data", file["name"]))
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Failed to delete: {e}")
 else:
@@ -217,13 +217,13 @@ with col1:
             rag_engine.update_vector_store()
             st.success("Document database refreshed!")
             time.sleep(1)
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.error(f"Error refreshing documents: {e}")
 with col2:
     if st.button("Clear Chat"):
         st.session_state.messages = []
-        st.experimental_rerun()
+        st.rerun()
 
 # Export/Import chat
 st.sidebar.subheader("Chat Management")
@@ -252,7 +252,7 @@ with col2:
             chat_data = json.load(uploaded_chat)
             st.session_state.messages = chat_data.get("messages", [])
             st.success("Chat imported!")
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.error(f"Failed to import chat: {e}")
 
@@ -275,7 +275,7 @@ if url_input:
                     stats = rag_engine.get_stats()
                     st.sidebar.write(f"Total documents: {stats.get('document_count', 0)}")
                     time.sleep(1)
-                    st.experimental_rerun()
+                    st.rerun()  # Updated from experimental_rerun()
                 else:
                     status.update(label="❌ Failed to process URL", state="error")
             else:
