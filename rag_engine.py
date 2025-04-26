@@ -114,7 +114,13 @@ class RAGEngine:
                 self._create_new_vector_store()
         except Exception as e:
             logger.error(f"Vector store initialization failed: {e}")
-            raise
+            logger.info("Creating an empty vector store. Please add documents later.")
+            os.makedirs(self.persist_directory, exist_ok=True)
+            self.vector_store = FAISS.from_texts(
+                texts=["Initialize empty vector store"],
+                embedding=self.embeddings
+            )
+            self.vector_store.save_local(self.persist_directory, "index")
     
     def _create_new_vector_store(self):
         """Create a new vector store from documents."""
