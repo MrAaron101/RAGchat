@@ -22,6 +22,9 @@ from langchain.prompts import PromptTemplate
 from document_processor import DocumentProcessor
 from contextlib import contextmanager
 import gc
+from urllib.parse import urlparse
+import validators
+from langchain_community.document_loaders import WebBaseLoader
 
 class QueryResponse(TypedDict):
     answer: str
@@ -299,6 +302,48 @@ class RAGEngine:
                 "error": str(e),
                 "model": self.model_name
             }
+    
+    # Add this method to the RAGEngine class
+    def add_url(self, url: str) -> bool:
+        """
+        Add content from a URL to the vector store.
+        
+        Args:
+            url: URL to process and add to the knowledge base
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not validators.url(url):
+            logger.error(f"Invalid URL format: {url}")
+            return False
+            
+        try:
+            logger.info(f"Processing URL: {url}")
+            with self._memory_manager():
+                # Load and process URL content
+                loader = WebBaseLoader(url)
+                documents = loader.load()
+                
+                # Add metadata
+                for doc in documents:
+                    doc.metadata.update({
+                        "source": url,
+                        "file_type": "url",
+                        "domain": urlparse(url).netloc,
+                        "file_name": f"url_{urlparse(url).netloc}"
+                    })
+                
+                # Add to vector store
+                self.vector_store.add_documents(documents)
+                self.vector_store.save_local(self.persist_directory, "index")
+                
+                logger.info(f"Successfully added URL content: {url}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error processing URL {url}: {e}")
+            return False
 
 if __name__ == "__main__":
     # Simple test to make sure the engine works
@@ -315,3 +360,13 @@ if __name__ == "__main__":
             print(f"- Source {i+1} ({source['file_name']}): {source['content']}")
     else:
         logger.info("No documents in the vector store. Please add documents first.")
+    
+    # Test URL addition
+    test_url = "https://example.com"
+    logger.info("Testing URL addition...")
+    if rag.add_url(test_url):
+        response = rag.query("What is this website about?")
+        print(f"URL Test Answer: {response['answer']}")
+        print(f"Based on {response['source_count']} sources from URL")
+    else:
+        logger.error("Failed to add test URL")

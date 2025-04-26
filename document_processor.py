@@ -17,23 +17,25 @@ import gc
 from langchain_community.document_loaders import (
     PyPDFLoader, 
     TextLoader, 
+    WebBaseLoader,
     UnstructuredMarkdownLoader,
     CSVLoader,
     UnstructuredPowerPointLoader,
     UnstructuredHTMLLoader,
 )
 # Langchain imports
+from urllib.parse import urlparse
+import validators
 from langchain.document_loaders.base import BaseLoader
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
 
 class DocumentProcessor:
     """
     Processes documents from a directory and prepares them for the RAG engine.
     Optimized for M2 MacBook with memory constraints.
     """
-    
+
     def __init__(
         self, 
         data_dir: Union[str, Path] = "./data", 
@@ -206,6 +208,59 @@ class DocumentProcessor:
             logger.info(f"Split into {len(chunks)} chunks")
         
             return chunks
+        
+    def process_url(self, url: str) -> List[Document]:
+        """
+        Process a single URL and convert it to documents.
+        
+        Args:
+            url: URL to process
+            
+        Returns:
+            List[Document]: List of processed documents from URL
+        """
+        if not validators.url(url):
+            logger.error(f"Invalid URL format: {url}")
+            return []
+            
+        try:
+            logger.info(f"Processing URL: {url}")
+            loader = WebBaseLoader(url)
+            documents = loader.load()
+            
+            # Add metadata
+            for doc in documents:
+                doc.metadata.update({
+                    "source": url,
+                    "file_type": "URL",
+                    "domain": urlparse(url).netloc,
+                    "file_name": urlparse(url).path or "index"
+                })
+                
+            return documents
+            
+        except Exception as e:
+            logger.error(f"Error processing URL {url}: {e}")
+            return []
+
+    def add_url(self, url: str) -> List[Document]:
+        """
+        Process a URL and split it into chunks.
+        
+        Args:
+            url: URL to process
+            
+        Returns:
+            List[Document]: List of document chunks
+        """
+        with self.memory_manager():
+            documents = self.process_url(url)
+            if not documents:
+                return []
+                
+            chunks = self.text_splitter.split_documents(documents)
+            logger.info(f"Split URL content into {len(chunks)} chunks")
+            return chunks
 
 
 if __name__ == "__main__":
@@ -225,3 +280,14 @@ if __name__ == "__main__":
         logger.info(f"Total chunks created: {len(chunks)}")
     else:
         logger.warning("No chunks were created. Check if there are documents in the data directory.")
+    
+    # Test URL processing
+    test_url = "https://example.com"
+    url_chunks = processor.add_url(test_url)
+    if url_chunks:
+        logger.info(f"Successfully processed URL: {test_url}")
+        logger.info(f"Number of URL chunks: {len(url_chunks)}")
+    else:
+        logger.warning(f"Failed to process URL: {test_url}")
+
+        

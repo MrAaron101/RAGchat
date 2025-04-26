@@ -10,7 +10,7 @@ attrs==25.3.0
 backoff==2.2.1
 banks==2.1.2
 bcrypt==4.3.0
-beautifulsoup4==4.13.4
+beautifulsoup4>=4.12.0
 blinker==1.9.0
 build==1.2.2.post1
 cachetools==5.5.2
@@ -147,7 +147,7 @@ PyYAML==6.0.2
 RapidFuzz==3.13.0
 referencing==0.36.2
 regex==2024.11.6
-requests==2.32.3
+requests>=2.31.0
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 rich==14.0.0
@@ -187,6 +187,7 @@ unstructured-client==0.34.0
 urllib3==2.4.0
 uvicorn==0.34.2
 uvloop==0.21.0
+validators>=0.20.0
 watchfiles==1.0.5
 webencodings==0.5.1
 websocket-client==1.8.0
